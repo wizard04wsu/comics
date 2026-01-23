@@ -1,0 +1,560 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Cock Fight Comic – Panels</title>
+  <style>
+    :root{
+      --bg: #0b0c10;
+      --panel: #141622;
+      --text: #e8e8ee;
+      --muted: #a6a7b3;
+      --border: rgba(255,255,255,.12);
+      --shadow: 0 10px 30px rgba(0,0,0,.35);
+
+      /* Slider-controlled minimum tile width */
+      --minTile: 260px;     /* left end: smaller tiles = more columns; right end: larger = fewer columns */
+      --gap: 14px;
+      --radius: 14px;
+
+      --uiHeight: 62px;
+    }
+
+    *{ box-sizing:border-box; }
+    html,body{ height:100%; }
+    body{
+      margin:0;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      background: radial-gradient(1200px 700px at 20% -10%, rgba(124,77,255,.18), transparent 55%),
+                  radial-gradient(900px 600px at 90% 10%, rgba(0,212,255,.12), transparent 55%),
+                  var(--bg);
+      color: var(--text);
+    }
+
+    /* Header is ALWAYS fixed */
+    header{
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      z-index: 10;
+      backdrop-filter: blur(10px);
+      background: rgba(11,12,16,.72);
+      border-bottom: 1px solid var(--border);
+    }
+    .bar{
+      height: var(--uiHeight);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 14px;
+      max-width: 1400px;
+      margin: 0 auto;
+    }
+    .title{
+      display:flex;
+      flex-direction: column;
+      line-height: 1.1;
+      min-width: 180px;
+    }
+    .title strong{ font-size: 14px; letter-spacing:.2px; }
+    .title span{ font-size: 12px; color: var(--muted); }
+
+    .controls{
+      display:flex;
+      align-items:center;
+      gap: 10px;
+      flex: 1;
+      min-width: 0;
+    }
+    .btn{
+      appearance:none;
+      border: 1px solid var(--border);
+      background: rgba(255,255,255,.06);
+      color: var(--text);
+      padding: 8px 10px;
+      border-radius: 10px;
+      cursor:pointer;
+      box-shadow: 0 2px 0 rgba(0,0,0,.25);
+      user-select:none;
+      white-space: nowrap;
+    }
+    .btn:hover{ background: rgba(255,255,255,.10); }
+    .btn:active{ transform: translateY(1px); }
+    .btn[aria-pressed="true"]{
+      background: rgba(124,77,255,.22);
+      border-color: rgba(124,77,255,.55);
+    }
+
+    .sliderWrap{
+      display:flex;
+      align-items:center;
+      gap: 10px;
+      min-width: 260px;
+      flex: 1;
+    }
+    input[type="range"]{
+      width: 100%;
+      accent-color: #7c4dff;
+    }
+    .readout{
+      font-variant-numeric: tabular-nums;
+      color: var(--muted);
+      font-size: 12px;
+      min-width: 62px;
+      text-align: right;
+    }
+
+    .right{
+      display:flex;
+      align-items:center;
+      gap: 10px;
+    }
+    .search{
+      width: 210px;
+      max-width: 32vw;
+      padding: 8px 10px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: rgba(255,255,255,.05);
+      color: var(--text);
+      outline: none;
+    }
+    .search::placeholder{ color: rgba(255,255,255,.38); }
+
+    /* Main: pad down so fixed header doesn't cover content */
+    main{
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: calc(var(--uiHeight) + 16px) 14px 40px;
+    }
+    .hint{
+      margin: 10px 2px 16px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    /* Grid: slider controls min tile width => columns auto-fit */
+    .grid{
+      display:grid;
+      gap: var(--gap);
+      grid-template-columns: repeat(auto-fit, minmax(var(--minTile), 1fr));
+      align-items: start;
+    }
+
+    .card{
+      background: rgba(255,255,255,.04);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow:hidden;
+      box-shadow: var(--shadow);
+      transition: transform .12s ease, border-color .12s ease, background .12s ease;
+      cursor: zoom-in;
+    }
+    .card:hover{
+      transform: translateY(-2px);
+      border-color: rgba(255,255,255,.22);
+      background: rgba(255,255,255,.06);
+    }
+    .thumb{
+      display:block;
+      width:100%;
+      height:auto;
+      background: var(--panel);
+    }
+    .meta{
+      display:flex;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 8px 10px;
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .meta .name{
+      overflow:hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .meta .idx{
+      font-variant-numeric: tabular-nums;
+      opacity: .9;
+      flex: 0 0 auto;
+    }
+
+    /* Lightbox */
+    .lightbox{
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,.78);
+      display:none;
+      align-items: center;
+      justify-content: center;
+      z-index: 50;
+      padding: 22px;
+    }
+    .lightbox[open]{ display:flex; }
+    .lbInner{
+      width:min(1200px, 96vw);
+      height:min(92vh, 900px);
+      display:flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .lbTop{
+      display:flex;
+      align-items:center;
+      justify-content: space-between;
+      gap: 10px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+    .lbTop .lbTitle{
+      overflow:hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      max-width: 75%;
+    }
+    .lbImgWrap{
+      flex: 1;
+      border-radius: 16px;
+      overflow:hidden;
+      border: 1px solid rgba(255,255,255,.18);
+      background: rgba(20,22,34,.7);
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      box-shadow: var(--shadow);
+    }
+    .lbImg{
+      max-width: 100%;
+      max-height: 100%;
+      width:auto;
+      height:auto;
+      display:block;
+      cursor: zoom-out;
+    }
+
+    /* Small screens */
+    @media (max-width: 700px){
+      .title{ display:none; }
+      .sliderWrap{ min-width: 170px; }
+      .search{ width: 140px; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="bar">
+      <div class="title">
+        <strong>Comic Panels</strong>
+        <span>Folder: <code>./panels</code></span>
+      </div>
+
+      <div class="controls">
+        <!-- Smaller tile width => more columns -->
+        <button class="btn" id="moreCols" title="More columns (smaller tiles)">-</button>
+        <!-- Larger tile width => fewer columns (towards 1 column) -->
+        <button class="btn" id="lessCols" title="Fewer columns (bigger tiles)">+</button>
+
+        <div class="sliderWrap" title="Column width">
+          <input id="tileRange" type="range" />
+          <div class="readout" id="tileReadout">260px</div>
+        </div>
+      </div>
+
+      <div class="right">
+        <input class="search" id="search" placeholder="Filter filenames…" />
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <div class="hint">
+      Slider: <strong>left</strong> = smaller tiles / more columns • <strong>right</strong> = bigger tiles / fewer columns (often 1).<br/>
+      Shortcuts: <kbd>-</kbd> smaller tiles, <kbd>+</kbd> bigger tiles, <kbd>0</kbd> reset to default. Click a panel to open.
+      Manifest: add <code>panels/manifest.json</code> for exact ordering.
+    </div>
+
+    <div class="grid" id="grid" aria-live="polite"></div>
+  </main>
+
+  <!-- Lightbox -->
+  <div class="lightbox" id="lightbox" role="dialog" aria-modal="true" aria-label="Panel viewer">
+    <div class="lbInner">
+      <div class="lbTop">
+        <div class="lbTitle" id="lbTitle"></div>
+        <div>
+          <button class="btn" id="lbPrev" title="Previous (←)">←</button>
+          <button class="btn" id="lbNext" title="Next (→)">→</button>
+          <button class="btn" id="lbClose" title="Close (Esc)">Esc</button>
+        </div>
+      </div>
+      <div class="lbImgWrap" id="lbImgWrap">
+        <img class="lbImg" id="lbImg" alt="" />
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ---------- Config ----------
+    const PANELS_DIR = "panels/";
+    const MANIFEST_URL = PANELS_DIR + "manifest.json";
+
+    // Fallback scan pattern if no manifest.json exists
+    const FALLBACK = {
+      prefix: "Cock Fight Cartoon, panel ",
+      start: 1,
+      end: 250,              // increase if you have more
+      //pad: 3,                // panel-001
+      pad: 0,
+      exts: ["png","jpg","jpeg","webp","gif"]
+    };
+
+    // Slider: left = min tile width => auto-fit many columns
+    // right = max tile width => few columns (often 1)
+    const TILE = {
+      min: 180,
+      max: 980,
+      step: 10,
+      default: 260
+    };
+
+    // ---------- State ----------
+    let panels = [];         // {name, url}
+    let filtered = [];
+    let lightboxIndex = -1;
+
+    // ---------- DOM ----------
+    const grid = document.getElementById("grid");
+    const search = document.getElementById("search");
+
+    const tileRange = document.getElementById("tileRange");
+    const tileReadout = document.getElementById("tileReadout");
+    const moreCols = document.getElementById("moreCols");
+    const lessCols = document.getElementById("lessCols");
+
+    const lightbox = document.getElementById("lightbox");
+    const lbImg = document.getElementById("lbImg");
+    const lbTitle = document.getElementById("lbTitle");
+    const lbClose = document.getElementById("lbClose");
+    const lbPrev = document.getElementById("lbPrev");
+    const lbNext = document.getElementById("lbNext");
+    const lbImgWrap = document.getElementById("lbImgWrap");
+
+    // ---------- Helpers ----------
+    const setTileWidth = (px) => {
+      const clamped = Math.max(TILE.min, Math.min(TILE.max, px));
+      tileRange.value = String(clamped);
+      tileReadout.textContent = clamped + "px";
+      document.documentElement.style.setProperty("--minTile", clamped + "px");
+      localStorage.setItem("comic.minTile", String(clamped));
+    };
+
+    function escapeHtml(s){
+      return s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    }
+
+    // Try load manifest.json; if missing, fall back to probing common filenames.
+    async function loadPanels(){
+      // 1) Manifest mode
+      try{
+        const res = await fetch(MANIFEST_URL, { cache: "no-store" });
+        if(res.ok){
+          const data = await res.json();
+          // Accept either ["a.png","b.png"] OR {files:[...]}
+          const files = Array.isArray(data) ? data : (data.files || []);
+          panels = files.map(name => ({ name, url: PANELS_DIR + name }));
+          return;
+        }
+      }catch(e){
+        // ignore and fallback
+      }
+
+      // 2) Fallback probe mode
+      panels = await probeFallback();
+    }
+
+    function pad(num, width){
+      return String(num).padStart(width, "0");
+    }
+
+    async function probeFallback(){
+      const guesses = [];
+      for(let i = FALLBACK.start; i <= FALLBACK.end; i++){
+        const base = FALLBACK.prefix + pad(i, FALLBACK.pad);
+        for(const ext of FALLBACK.exts){
+          guesses.push({ name: base + "." + ext, url: PANELS_DIR + base + "." + ext });
+        }
+      }
+
+      // Probe efficiently (limited concurrency)
+      const found = [];
+      const concurrency = 12;
+      let idx = 0;
+
+      async function worker(){
+        while(idx < guesses.length){
+          const cur = guesses[idx++];
+          const ok = await urlExists(cur.url);
+          if(ok) found.push(cur);
+        }
+      }
+
+      const workers = Array.from({length: concurrency}, worker);
+      await Promise.all(workers);
+
+      // Sort by name so panel-001 before panel-010
+      found.sort((a,b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
+      return found;
+    }
+
+    function urlExists(url){
+      return new Promise((resolve) => {
+        const img = new Image();
+        img.onload = () => resolve(true);
+        img.onerror = () => resolve(false);
+        img.src = url + (url.includes("?") ? "&" : "?") + "v=" + Date.now();
+      });
+    }
+
+    function applyFilter(){
+      const q = (search.value || "").trim().toLowerCase();
+      filtered = !q ? panels : panels.filter(p => p.name.toLowerCase().includes(q));
+      render();
+    }
+
+    function render(){
+      grid.innerHTML = "";
+      if(filtered.length === 0){
+        const msg = document.createElement("div");
+        msg.style.color = "rgba(255,255,255,.65)";
+        msg.style.padding = "14px 2px";
+        msg.textContent = panels.length === 0
+          ? "No panels found. Add panels/manifest.json or name files like panel-001.png"
+          : "No matches for that filter.";
+        grid.appendChild(msg);
+        return;
+      }
+
+      filtered.forEach((p, i) => {
+        const card = document.createElement("div");
+        card.className = "card";
+        card.tabIndex = 0;
+        card.setAttribute("role","button");
+        card.setAttribute("aria-label", "Open " + p.name);
+
+        const img = document.createElement("img");
+        img.className = "thumb";
+        img.loading = "lazy";
+        img.alt = p.name;
+        img.src = p.url;
+
+        const meta = document.createElement("div");
+        meta.className = "meta";
+        meta.innerHTML = `<div class="name">${escapeHtml(p.name)}</div><div class="idx">#${i+1}</div>`;
+
+        card.appendChild(img);
+        card.appendChild(meta);
+
+        card.addEventListener("click", () => openLightbox(i));
+        card.addEventListener("keydown", (e) => {
+          if(e.key === "Enter" || e.key === " "){
+            e.preventDefault();
+            openLightbox(i);
+          }
+        });
+
+        grid.appendChild(card);
+      });
+    }
+
+    function openLightbox(i){
+      lightboxIndex = i;
+      const p = filtered[lightboxIndex];
+      lbImg.src = p.url;
+      lbImg.alt = p.name;
+      lbTitle.textContent = p.name + ` (${lightboxIndex+1}/${filtered.length})`;
+      lightbox.setAttribute("open","");
+    }
+
+    function closeLightbox(){
+      lightboxIndex = -1;
+      lightbox.removeAttribute("open");
+      lbImg.src = "";
+    }
+
+    function stepLightbox(dir){
+      if(lightboxIndex < 0) return;
+      lightboxIndex = (lightboxIndex + dir + filtered.length) % filtered.length;
+      openLightbox(lightboxIndex);
+    }
+
+    // ---------- UI wiring ----------
+    tileRange.addEventListener("input", () => setTileWidth(parseInt(tileRange.value, 10)));
+
+    // "+" button: smaller tiles => more columns
+    moreCols.addEventListener("click", () => setTileWidth(parseInt(tileRange.value, 10) - 60));
+    // "-" button: bigger tiles => fewer columns
+    lessCols.addEventListener("click", () => setTileWidth(parseInt(tileRange.value, 10) + 60));
+
+    search.addEventListener("input", applyFilter);
+
+    // Lightbox controls
+    lbClose.addEventListener("click", closeLightbox);
+    lightbox.addEventListener("click", (e) => { if(e.target === lightbox) closeLightbox(); });
+    lbImg.addEventListener("click", closeLightbox);
+    lbPrev.addEventListener("click", () => stepLightbox(-1));
+    lbNext.addEventListener("click", () => stepLightbox(+1));
+
+    // ctrl+wheel over image area adjusts columns (nice-to-have)
+    lbImgWrap.addEventListener("wheel", (e) => {
+      if(e.ctrlKey){
+        e.preventDefault();
+        const delta = Math.sign(e.deltaY);
+        // wheel up => more cols (smaller tiles); wheel down => fewer cols (bigger tiles)
+        setTileWidth(parseInt(tileRange.value, 10) + (delta > 0 ? 40 : -40));
+      }
+    }, { passive:false });
+
+    // Keyboard shortcuts
+    window.addEventListener("keydown", (e) => {
+      // Avoid hijacking when typing in the search box
+      const typing = document.activeElement === search;
+      if(typing) return;
+
+      // + / = => fewer columns (bigger tiles)
+      if(e.key === "+" || e.key === "="){ setTileWidth(parseInt(tileRange.value,10) + 60); }
+      // - / _ => more columns (smaller tiles)
+      if(e.key === "-" || e.key === "_"){ setTileWidth(parseInt(tileRange.value,10) - 60); }
+      // 0 => default
+      if(e.key === "0"){ setTileWidth(TILE.default); }
+
+      if(lightbox.hasAttribute("open")){
+        if(e.key === "Escape") closeLightbox();
+        if(e.key === "ArrowLeft") stepLightbox(-1);
+        if(e.key === "ArrowRight") stepLightbox(+1);
+      }
+    });
+
+    // ---------- Init ----------
+    (async function init(){
+      // range config
+      tileRange.min = String(TILE.min);
+      tileRange.max = String(TILE.max);
+      tileRange.step = String(TILE.step);
+
+      // restore prefs
+      const saved = parseInt(localStorage.getItem("comic.minTile") || String(TILE.default), 10);
+      setTileWidth(Number.isFinite(saved) ? saved : TILE.default);
+
+      const gp = parseInt(localStorage.getItem("comic.gap") || "14", 10);
+      document.documentElement.style.setProperty("--gap", (Number.isFinite(gp) ? gp : 14) + "px");
+
+      await loadPanels();
+      filtered = panels.slice();
+      render();
+    })();
+  </script>
+</body>
+</html>
