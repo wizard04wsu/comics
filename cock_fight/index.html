@@ -398,7 +398,6 @@
           const cur = guesses[idx++];
           const ok = await urlExists(cur.url);
           if(ok) found.push(cur);
-          else break;
         }
       }
 
